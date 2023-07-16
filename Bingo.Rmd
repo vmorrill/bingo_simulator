@@ -1,0 +1,408 @@
+---
+title: "Bingo"
+author: "Valerie Morrill"
+date: "6/28/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Estimating the probability of getting a bingo
+
+To estimate the probability of getting a bingo after x numbers are called, 
+we will make the following assumptions about the bingo game rules:
+
+* the bingo-card is a standard 5x5 bingo card with 24 unique numbers distributed across the grid
+* the bingo-card has a center free space
+* x unique, random numbers between 1 and 75 are called 
+* to get a bingo, you must form a horizontal, vertical, or diagonal line
+
+##We will use a simulation approach
+
+```{r, message = FALSE}
+library(dplyr)
+library(ggplot2)
+```
+
+###Write a function to create a random bingo-card
+```{r}
+create_bingo_card <- function() {
+  # Initialize an empty matrix for the bingo-card
+  card <- matrix(0, nrow = 5, ncol = 5)
+  
+  # Generate random numbers for each column
+  for (col in 1:5) {
+    # Calculate the range of numbers for the column
+    min_num <- 15 * (col - 1) + 1
+    max_num <- 15 * col
+    
+    # Sample 5 unique numbers for the column
+    column_numbers <- sample(min_num:max_num, 5, replace = FALSE)
+    
+    # Assign the numbers to the bingo-card
+    card[, col] <- column_numbers
+  }
+  
+  # Return the generated bingo-card
+  return(card)
+}
+
+```
+
+###Create a random bingo-card
+```{r}
+bingo_card <- create_bingo_card()
+
+# Print the bingo-card
+print(bingo_card)
+```
+
+###Write a function to create a record-card to mark the location of numbers called on your bingo-card
+
+```{r}
+create_record_card <- function() {
+        
+record_card <- matrix(FALSE, nrow = 5, ncol = 5)
+
+# Replace the center number with TRUE (free blank space)
+record_card[3, 3] <- TRUE
+
+# Return the generated record-card
+  return(record_card)
+}
+
+```
+
+###Create a record-card
+```{r}
+record_card <- create_record_card()
+
+# Print the record-card
+print(record_card)
+```
+
+###Write a function to mark the location of numbers called on the record-card
+
+```{r}
+update_record_card <- function(number) {
+
+if (number %in% bingo_card) {
+
+#make bingo card a data frame
+ t <- data.frame(bingo_card)
+
+ #extract row and column location of number called
+ location <- which(t==number,arr.ind=TRUE)
+ row <- location[1,1]
+ col <- location[1,2]
+ 
+record_card[row,col] <- TRUE
+
+}
+    
+return(record_card)
+    
+}
+
+```
+
+###Mark if we have 1, 2, 3 or 4 on the record card
+
+```{r}
+record_card<- update_record_card(1)
+record_card<- update_record_card(2)
+record_card<- update_record_card(3)
+record_card<- update_record_card(4)
+print(record_card)
+```
+
+###Write a function to check if a bingo is achieved
+
+```{r}
+check_bingo <- function(record_card) {
+  # Check rows
+  if (any(rowSums(record_card) == 5))
+    return(TRUE)
+  
+  # Check columns
+  if (any(colSums(record_card) == 5))
+    return(TRUE)
+  
+  # Check diagonals
+  if (sum(diag(record_card)) == 5 || sum(diag(apply(record_card, 2, rev))) == 5)
+    return(TRUE)
+  
+  # No bingo
+  return(FALSE)
+}
+```
+
+###Check for a bingo
+```{r}
+check_bingo(record_card) 
+```
+
+###Call all the rest of the possible numbers in the first column, and then check for a bingo
+```{r}
+record_card<- update_record_card(5)
+record_card<- update_record_card(6)
+record_card<- update_record_card(7)
+record_card<- update_record_card(8)
+record_card<- update_record_card(9)
+record_card<- update_record_card(10)
+record_card<- update_record_card(11)
+record_card<- update_record_card(12)
+record_card<- update_record_card(13)
+record_card<- update_record_card(14)
+record_card<- update_record_card(15)
+print(record_card)
+check_bingo(record_card) 
+```
+
+###Write a function to simulate a bingo game with x numbers called
+
+```{r}
+simulate_bingo <- function(x, bingo_card, record_card) {
+        
+        # Generate x random numbers between 1 and 75 without replacement (assuming a standard 75-ball bingo game)
+        numbers <- sample(1:75, x, replace=FALSE)
+
+        #For each number called
+        for (i in numbers) {
+
+                #if it is on the bingo card
+                if (i %in% bingo_card) {
+
+                        #extract row and column location of number called on the bingo card
+                        t <- data.frame(bingo_card)
+                        location <- which(t==i,arr.ind=TRUE)
+                        row <- location[1,1]
+                        col <- location[1,2]
+                
+                        #Mark that location on the record card
+                        record_card[row,col] <- TRUE
+
+                }
+    
+        }
+
+#Check for a bingo
+return(check_bingo(record_card))
+    
+}
+
+```
+
+###Simulate one bingo game with 30 numbers called. Did we get a bingo?
+```{r}
+# Create a random bingo-card
+bingo_card <- create_bingo_card()
+# Create a blank record-card
+record_card <- create_record_card() 
+
+simulate_bingo(30, bingo_card, record_card)
+```
+
+###Simulate 1000 bingo games with 30 numbers called. What proportion of games did we get a bingo?
+
+```{r}
+# Set the number of simulations
+num_simulations <- 1000
+
+# Set x numbers
+x<- 30
+
+# Initialize a counter for successful bingos
+bingo_counter <- 0
+
+# Run the simulations
+for (i in 1:num_simulations) {
+        
+        # Create a random bingo-card
+        bingo_card <- create_bingo_card()
+
+        # Create a blank record-card
+        record_card <- create_record_card()
+ 
+        #if bingo is true, add one to the bingo counter       
+        if (simulate_bingo(x, bingo_card, record_card)) {
+        bingo_counter <- bingo_counter + 1
+        }
+}
+
+# Calculate the probability of getting a bingo after x numbers are called
+probability <- bingo_counter / num_simulations
+
+# Print the result
+cat("Probability of getting a bingo after", x, " numbers are called:", probability, "\n")
+```
+
+###Simulate 1000 bingo games each with 1-75 numbers called. What proportion of games did we get a bingo?
+
+```{r}
+# Create a data frame to store the results
+bingo_results <- data.frame(matrix(ncol = 2, nrow = 75))
+colnames(bingo_results) <- c("number_of_numbers", "probability_of_bingo")
+
+# Set the number of simulations
+num_simulations <- 1000
+        
+#For each number called
+for (x in 1:75) {
+        
+        # Initialize a counter for successful bingos
+        bingo_counter <- 0
+
+        #For each simulation
+        for (i in 1:num_simulations) {
+
+        
+                # Create a random bingo-card
+                bingo_card <- create_bingo_card()
+
+                # Create a blank record-card
+                record_card <- create_record_card()
+ 
+                #if bingo is true, add one to the bingo counter       
+                if (simulate_bingo(x, bingo_card, record_card)) {
+                bingo_counter <- bingo_counter + 1
+                }
+                
+        #record the percent of bingos associated with the number of numbers called
+        bingo_results[x,1]<- x
+        bingo_results[x,2]<- bingo_counter / num_simulations
+        }
+
+}
+
+# Print the result
+bingo_results
+```
+
+
+```{r}
+# Plot the result
+
+plot(bingo_results$number_of_numbers, bingo_results$probability_of_bingo)
+
+```
+
+###What if there are 18 people playing bingo?
+###Simulate 1000 bingo games with 30 numbers called. What proportion of games did we get a bingo?
+
+```{r}
+# Set the number of simulations
+num_simulations <- 1000
+
+# Set x numbers
+x<- 30
+
+# Set the number of people
+people <- 18
+
+# Initialize a counter for successful bingos
+bingo_counter <- 0
+
+# Run the simulations
+for (i in 1:num_simulations) {
+        
+        #For each person
+              for (t in 1:people) {
+                        
+        
+                        # Create a random bingo-card
+                        bingo_card <- create_bingo_card()
+
+                        # Create a blank record-card
+                        record_card <- create_record_card()
+                        
+                        #If a person did not get bingo after x numbers were called, move to the next person
+                        #If any person got bingo after x numbers are called, 
+                        #add one to the bingo counter and stop looping over people
+                        if (!simulate_bingo(x, bingo_card, record_card)) {
+                        bingo_counter <- bingo_counter + 0
+                        } else {
+                        bingo_counter <- bingo_counter + 1
+                        break
+                        } 
+                        
+                  }
+
+}
+
+# Calculate the probability of getting a bingo after x numbers are called
+probability <- bingo_counter / num_simulations
+
+# Print the result
+cat("Probability of getting a bingo after", x, " numbers are called when there are ", people , "people:", probability, "\n")
+```
+
+
+###Simulate 100 (1000 takes too long) bingo games each with 1-75 numbers called when there are 18 people. What proportion of games did we get a bingo?
+
+```{r}
+# Create a data frame to store the results
+bingo_results <- data.frame(matrix(ncol = 2, nrow = 75))
+colnames(bingo_results) <- c("number_of_numbers", "probability_of_bingo")
+
+# Set the number of simulations
+num_simulations <- 500
+
+# Set the number of people
+people <- 18
+
+# For each number called
+for (x in 1:75) {
+        
+        # Initialize a counter for successful bingos
+        bingo_counter <- 0
+
+        # For each simulation
+        for (i in 1:num_simulations) {
+                        
+                for (t in 1:people) {
+                        
+        
+                        # Create a random bingo-card
+                        bingo_card <- create_bingo_card()
+
+                        # Create a blank record-card
+                        record_card <- create_record_card()
+                        
+                        #If a person did not get bingo after x numbers were called, move to the next person
+                        #If any person got bingo after x numbers are called, add one to the bingo counter and stop looping over people
+                        if (!simulate_bingo(x, bingo_card, record_card)) {
+                        bingo_counter <- bingo_counter + 0
+                        } else {
+                        bingo_counter <- bingo_counter + 1
+                        break
+                        } 
+                        
+                  }
+                        
+                        
+                
+
+        }     
+
+        #record the percent of bingos associated with the number of numbers called
+        bingo_results[x,1]<- x
+        bingo_results[x,2]<- bingo_counter / num_simulations
+}
+
+
+
+# Print the result
+bingo_results
+```
+
+
+```{r}
+# Plot the result
+
+plot(bingo_results$number_of_numbers, bingo_results$probability_of_bingo)
+
+```
+
